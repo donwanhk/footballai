@@ -1,0 +1,5 @@
+videos
+output
+yolo*.pt
+.DS_Store
+.venv/
