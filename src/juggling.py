@@ -4,10 +4,12 @@ from ultralytics import YOLO
 import time
 import numpy as np
 from filterpy.kalman import KalmanFilter
+from datetime import datetime
 
 # --- Config ---
 video_path = "videos/juggling_clip.mp4"
-output_path = "output/juggling_output.mp4"
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+output_path = f"output/juggling_output_{timestamp}.mp4"
 hit_threshold = 5
 max_missing = 10
 
@@ -105,7 +107,7 @@ def detect_ball(frame, prev_box, missing_count, frame_idx):
         return best, 0, False
     elif prev_box and missing_count < max_missing:
         kf.predict()
-        pred_x, pred_y = kf.x[0], kf.x[1]
+        pred_x, pred_y = kf.x[0].item(), kf.x[1].item()
         box_size = (prev_box[2] - prev_box[0])
         x1 = int(pred_x - box_size / 2)
         y1 = int(pred_y - box_size / 2)
@@ -117,14 +119,14 @@ def detect_ball(frame, prev_box, missing_count, frame_idx):
         return None, missing_count + 1, False
 
 # --- Hit detection ---
-def detect_hit(y_positions, max_track_len, frame_idx, last_hit_frame, hit_count):
+def detect_bounce(y_positions, max_track_len, frame_idx, last_hit_frame, hit_count):
     if len(y_positions) == max_track_len:
         y_prev = y_positions
         if y_prev[2] < y_prev[1] and y_prev[2] < y_prev[3]:
             if frame_idx - last_hit_frame > 10:
                 hit_count += 1
                 last_hit_frame = frame_idx
-                print(f"[HIT] Hit #{hit_count} at frame {frame_idx}")
+                print(f"[BOUNCE] #{hit_count} at frame {frame_idx}")
     return hit_count, last_hit_frame
 
 # --- Tracking ---
@@ -160,10 +162,10 @@ while cap.isOpened():
             y_positions.pop(0)
 
         # Detect hit
-        hit_count, last_hit_frame = detect_hit(y_positions, max_track_len, frame_idx, last_hit_frame, hit_count)
+        hit_count, last_hit_frame = detect_bounce(y_positions, max_track_len, frame_idx, last_hit_frame, hit_count)
 
     # Display debug info
-    cv2.putText(frame, f"Hits: {hit_count}", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3)
+    cv2.putText(frame, f"Bounces: {hit_count}", (100, 150), cv2.FONT_HERSHEY_SIMPLEX, 2.2, (255, 0, 0), 3)
 
     out.write(frame)
 
